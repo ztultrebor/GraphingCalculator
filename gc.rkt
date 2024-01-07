@@ -19,22 +19,17 @@
 ; ========================
 ; data definitions
 
-(define-struct function [graphed-x graphed-y to-be-graphed-x to-be-graphed-y])
-; a Function is a [[ListOf Number] [ListOf Number]
-;                  [ListOf Number] [ListOf Number]]
+(define-struct function [x y plot])
+; a Function is a [[ListOf Number] [ListOf Number] Image]
 #; 
 (define (fn-on-function f)
-  (...(first (function-graphed-x f)) ... (first (function-graphed-y f))
-      ... (first (function-to-be-graphed-x f))
-      ... (first (function-to-be-graphed-y f))
-      ... (make-function (rest graphed-x) (rest graphed-y)
-                         (rest to-be-graphed-x) (rest to-be-graphed-x))))
+  (...(first (function-x f)) ... (first (function-y f)) ... (fn-on-img plot)))
 
 
 ; ========================
 ; functions
 
-(define (main func x)
+(define (main func x bkg)
   ; Game -> Game
   ; run the pocket universe
   (local (
@@ -47,12 +42,10 @@
             (map (lambda (n) (* (/ WIDTH (- maxx minx)) (- n minx))) x))
           (define yrange
             (map (lambda (n) (* (/ HEIGHT (- minfx maxfx)) (- n maxfx))) fx))
-          (define data (make-function
-                        (list (first xrange)) (list (first yrange))
-                        (rest xrange) (rest yrange))))
+          (define data (make-function xrange yrange bkg)))
     ; - IN -
     (big-bang data
-      [on-tick graph 1/112]
+      [on-tick graph]
       [to-draw render]
       [stop-when end?])))
 
@@ -60,38 +53,30 @@
 (define (graph d)
   ; Function -> Function
   ; updates the current point of graphing
-  (make-function (cons (first (function-to-be-graphed-x d))
-                       (function-graphed-x d))
-                 (cons (first (function-to-be-graphed-y d))
-                       (function-graphed-y d))
-                 (rest (function-to-be-graphed-x d))
-                 (rest (function-to-be-graphed-y d))))
+  (local (
+          (define x (function-x d))
+          (define y (function-y d)))      
+    (cond
+      [(empty? (rest x))
+       (make-function '() '() (function-plot d))]
+      [else (make-function
+             (rest x) (rest y)
+             (add-line (function-plot d)
+                       (first x) (first y) (second x) (second y) "blue"))])))
 
 
 (define (render d)
   ; Function -> Image
   ; takes a function and a domain of numbers and returns the
   ; range of the applied function
-  (local (
-          (define xrng (function-graphed-x d))
-          (define yrng (function-graphed-y d))
-          (define (draw-segment x y)
-            ; [ListOf Number] [ListOf Number] -> Image
-            ; draw each tiny line segment of a curve in succession
-             (cond
-               [(empty? x) BACKGROUND]
-               [(empty? (rest x)) BACKGROUND]
-               [else
-                (add-line (draw-segment (rest x) (rest y))
-                          (first x) (first y) (second x) (second y) "blue")])))
-    ; - IN -
-    (place-image POINT (first xrng) (first yrng) (draw-segment xrng yrng))))
+  (place-image POINT (first (function-x d))
+               (first (function-y d)) (function-plot d)))
 
 
 (define (end? d)
   ; Function -> Boolean
   ; stops when function is completely graphed
-  (= 0 (length (function-to-be-graphed-x d))))
+  (= 0 (length (function-x d))))
           
 
 (define (maximum lon)
@@ -121,4 +106,5 @@
 
 ;(main (lambda (x) (exp x)) (range -5 5 0.01))
 
-(main (lambda (x) (+ (* (sqr x) (sqr x)) (- x) -1)) (range -2 2 0.005))
+(main (lambda (x) (+ (* (sqr x) (sqr x)) (- x) -1)) (range -2 2 0.005)
+      BACKGROUND)
